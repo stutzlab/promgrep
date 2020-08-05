@@ -1,8 +1,5 @@
 #!/bin/sh
 
-echo "Starting sample prometheus grep..."
-ENV COUNTER1_METRIC_NAME ''
-ENV COUNTER1_REGEX ''
+echo "Starting sample Prometheus grep..."
+while [ true ]; do cat test.txt; done | promgrep
 
-ENV GAUGE1_METRIC_NAME ''
-ENV GAUGE1_REGEX ''
