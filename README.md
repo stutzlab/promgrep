@@ -15,7 +15,7 @@ Result:
 ```sh
 # HELP promgrep_thing Counters for regex 'thing'
 # TYPE promgrep_thing summary
-promgrep_thing_sum 3
+promgrep_thing_sum 0
 promgrep_thing_count 3
 ```
 
