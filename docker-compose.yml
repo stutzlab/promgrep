@@ -2,17 +2,14 @@ version: '3.5'
 
 services:
 
-  stdin2prometheus:
+  promgrep:
     build: .
     volumes:
       - ./:/app
       - ./dist:/dist
-    environment: 
-      - COUNTER1_METRIC_NAME=samplecounterx
-      - COUNTER1_REGEX=
-      - GAUGE1_METRIC_NAME=samplegaugex
-      - GAUGE1_REGEX=
-
+    ports:
+      - 8880:8880
+  
   prometheus:
     image: flaviostutz/prometheus
     ports:

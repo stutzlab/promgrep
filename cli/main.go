@@ -1,7 +1,14 @@
 package main
 
 import (
+	"context"
 	"flag"
+	"fmt"
+	"os"
+	"strings"
+
+	"github.com/sirupsen/logrus"
+	"github.com/stutzlab/promgrep"
 )
 
 type option struct {
@@ -9,7 +16,8 @@ type option struct {
 	bindPort    uint
 	metricsPath string
 
-	countMetricRules arrayFlags
+	summaryMetricRules arrayFlags
+	gaugeMetricRules   arrayFlags
 }
 
 type arrayFlags []string
@@ -25,12 +33,55 @@ func (i *arrayFlags) Set(value string) error {
 
 func main() {
 
+	logrus.SetLevel(logrus.DebugLevel)
+
 	opt := option{}
 
 	flag.UintVar(&opt.bindPort, "port", 8880, "Prometheus exporter port. defaults to 8880")
 	flag.StringVar(&opt.bindHost, "host", "0.0.0.0", "Prometheus exporter bind host. defaults to 0.0.0.0")
 	flag.StringVar(&opt.metricsPath, "path", "/metrics", "Prometheus exporter port. defaults to /metric")
 
-	flag.Var(&opt.countMetricRules, "count", "Count metrics regex grep config. Ex.: 'question@question\\sfinished' for a counter under metric 'question' that gets incremented when 'question finished' substring is found in stdin stream. See more info at http://github.com/stutzlab/promgrep")
+	flag.Var(&opt.summaryMetricRules, "summary", "Summarized count metrics regex grep config. Ex.: 'question@question\\sfinished\\s([0-9]+)ms' will expose a metric with a counter of number of questions finished and another with the sum of question latencies over time. See more info at http://github.com/stutzlab/promgrep")
+	flag.Var(&opt.gaugeMetricRules, "gauge", "Gauge metrics regex grep config. Ex.: 'temperature@temp-now-is-([0-9\\.]+)degrees' will expose a metric with the temperature gotten from the stream. See more info at http://github.com/stutzlab/promgrep")
+	flag.Parse()
 
+	rules := make([]promgrep.MetricRule, 0)
+
+	for _, mr := range opt.summaryMetricRules {
+		rules = addRule(mr, promgrep.TypeSummary, rules)
+	}
+
+	for _, mr := range opt.gaugeMetricRules {
+		rules = addRule(mr, promgrep.TypeGauge, rules)
+	}
+
+	ctx := context.Background()
+
+	opt2 := promgrep.PromOptions{
+		BindHost:    opt.bindHost,
+		BindPort:    opt.bindPort,
+		MetricsPath: opt.metricsPath,
+	}
+
+	err := promgrep.Start(ctx, rules, opt2, os.Stdin)
+	if err != nil {
+		panic(err)
+	}
+	<-ctx.Done()
+}
+
+func addRule(ruleStr string, typ promgrep.MetricType, rules []promgrep.MetricRule) []promgrep.MetricRule {
+	i := strings.Index(ruleStr, "@")
+	if i == -1 {
+		panic(fmt.Sprintf("Metric definition %s must be in format [name]@[regex]", ruleStr))
+	}
+	name := ruleStr[0:i]
+	regex := ruleStr[i+1:]
+	rules = append(rules, promgrep.MetricRule{
+		Name:  name,
+		Regex: regex,
+		Typ:   typ,
+	})
+
+	return rules
 }
