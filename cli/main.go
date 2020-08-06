@@ -3,7 +3,6 @@ package main
 import (
 	"context"
 	"flag"
-	"fmt"
 	"os"
 	"strings"
 
@@ -32,8 +31,7 @@ func (i *arrayFlags) Set(value string) error {
 }
 
 func main() {
-
-	logrus.SetLevel(logrus.DebugLevel)
+	logrus.SetLevel(logrus.InfoLevel)
 
 	opt := option{}
 
@@ -65,7 +63,8 @@ func main() {
 
 	err := promgrep.Start(ctx, rules, opt2, os.Stdin)
 	if err != nil {
-		panic(err)
+		logrus.Warnf("Could not start promgrep: %s", err)
+		os.Exit(1)
 	}
 	<-ctx.Done()
 }
@@ -73,7 +72,8 @@ func main() {
 func addRule(ruleStr string, typ promgrep.MetricType, rules []promgrep.MetricRule) []promgrep.MetricRule {
 	i := strings.Index(ruleStr, "@")
 	if i == -1 {
-		panic(fmt.Sprintf("Metric definition %s must be in format [name]@[regex]", ruleStr))
+		logrus.Warnf("Metric definition %s must be in format [name]@[regex]", ruleStr)
+		os.Exit(1)
 	}
 	name := ruleStr[0:i]
 	regex := ruleStr[i+1:]

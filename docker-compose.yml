@@ -9,6 +9,7 @@ services:
       - ./dist:/dist
     ports:
       - 8880:8880
+    # command: /app/test.sh
   
   prometheus:
     image: flaviostutz/prometheus

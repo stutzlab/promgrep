@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"regexp"
 	"strconv"
+	"strings"
 
 	"github.com/gorilla/mux"
 	"github.com/prometheus/client_golang/prometheus"
@@ -76,6 +77,9 @@ func Start(ctx context.Context, rules []MetricRule, opt PromOptions, in io.Reade
 				Name: fmt.Sprintf("promgrep_%s", r.Name),
 				Help: fmt.Sprintf("Gauge for regex '%s'", r.Regex),
 			})
+			if (strings.Index(r.Regex, "(") == -1) || (strings.Index(r.Regex, ")") == -1) {
+				return fmt.Errorf("gauge regex must have at least one group match for extracting the desired value from stream")
+			}
 		}
 		r.in = make(chan string)
 		logrus.Debugf("Preparing rule %s", r.Name)
@@ -139,7 +143,7 @@ func Start(ctx context.Context, rules []MetricRule, opt PromOptions, in io.Reade
 						continue
 					}
 					for _, m := range matches {
-						c := 1.0
+						c := 0.0
 						var err2 error
 						if len(m) > 1 {
 							c, err2 = strconv.ParseFloat(m[1], 64)

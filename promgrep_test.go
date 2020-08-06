@@ -40,11 +40,11 @@ func TestBasic(t *testing.T) {
 	time.Sleep(1 * time.Second)
 
 	bs := readMetrics(t)
-	assert.Contains(t, bs, "promgrep_all_sum 1")
+	assert.Contains(t, bs, "promgrep_all_sum 0")
 	assert.Contains(t, bs, "promgrep_all_count 1")
-	assert.Contains(t, bs, "promgrep_empty_sum 1")
+	assert.Contains(t, bs, "promgrep_empty_sum 0")
 	assert.Contains(t, bs, "promgrep_empty_count 1")
-	assert.Contains(t, bs, "promgrep_full_sum 1")
+	assert.Contains(t, bs, "promgrep_full_sum 0")
 	assert.Contains(t, bs, "promgrep_full_count 1")
 }
 
@@ -88,13 +88,13 @@ func TestSimpleCounter(t *testing.T) {
 
 	bs := readMetrics(t)
 	assert.Contains(t, bs, "promgrep_full2_count 1")
-	assert.Contains(t, bs, "promgrep_full2_sum 1")
+	assert.Contains(t, bs, "promgrep_full2_sum 0")
 	assert.Contains(t, bs, "promgrep_xyz_count 2")
-	assert.Contains(t, bs, "promgrep_xyz_sum 2")
+	assert.Contains(t, bs, "promgrep_xyz_sum 0")
 	assert.Contains(t, bs, "promgrep_123abc_count 4")
-	assert.Contains(t, bs, "promgrep_123abc_sum 4")
+	assert.Contains(t, bs, "promgrep_123abc_sum 0")
 	assert.Contains(t, bs, "promgrep_numbers_count 8")
-	assert.Contains(t, bs, "promgrep_numbers_sum 8")
+	assert.Contains(t, bs, "promgrep_numbers_sum 0")
 	assert.Contains(t, bs, "promgrep_numbers_summed_count 8")
 	assert.Contains(t, bs, "promgrep_numbers_summed_sum 1823")
 }
