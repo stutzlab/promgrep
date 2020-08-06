@@ -40,8 +40,8 @@ type MetricRule struct {
 	Name          string
 	Regex         string
 	Typ           MetricType
-	metricSummary prometheus.Summary
-	metricGauge   prometheus.Gauge
+	metricSummary *prometheus.SummaryVec
+	metricGauge   *prometheus.GaugeVec
 	in            chan string
 }
 
@@ -68,14 +68,18 @@ func Start(ctx context.Context, rules []MetricRule, opt PromOptions, in io.Reade
 			return fmt.Errorf("Typ must be defined in metric %s", r.Name)
 		}
 		if r.Typ == TypeSummary {
-			r.metricSummary = promauto.NewSummary(prometheus.SummaryOpts{
+			r.metricSummary = promauto.NewSummaryVec(prometheus.SummaryOpts{
 				Name: fmt.Sprintf("promgrep_%s", r.Name),
 				Help: fmt.Sprintf("Counters for regex '%s'", r.Regex),
+			}, []string{
+				"label",
 			})
 		} else if r.Typ == TypeGauge {
-			r.metricGauge = promauto.NewGauge(prometheus.GaugeOpts{
+			r.metricGauge = promauto.NewGaugeVec(prometheus.GaugeOpts{
 				Name: fmt.Sprintf("promgrep_%s", r.Name),
 				Help: fmt.Sprintf("Gauge for regex '%s'", r.Regex),
+			}, []string{
+				"label",
 			})
 			if (strings.Index(r.Regex, "(") == -1) || (strings.Index(r.Regex, ")") == -1) {
 				return fmt.Errorf("gauge regex must have at least one group match for extracting the desired value from stream")
@@ -143,19 +147,30 @@ func Start(ctx context.Context, rules []MetricRule, opt PromOptions, in io.Reade
 						continue
 					}
 					for _, m := range matches {
+						label := ""
 						c := 0.0
-						var err2 error
 						if len(m) > 1 {
-							c, err2 = strconv.ParseFloat(m[1], 64)
+							c1, err1 := strconv.ParseFloat(m[1], 64)
+							if err1 != nil {
+								logrus.Debugf("Could not parse '%s' as float in stream", m[1])
+								label = m[1]
+							} else {
+								c = c1
+							}
+						}
+						if len(m) > 2 {
+							c2, err2 := strconv.ParseFloat(m[2], 64)
 							if err2 != nil {
 								logrus.Debugf("Could not parse '%s' as float in stream", m[1])
-								continue
+								label = m[2]
+							} else {
+								c = c2
 							}
 						}
 						if ru.Typ == TypeSummary {
-							ru.metricSummary.Observe(c)
+							ru.metricSummary.WithLabelValues(label).Observe(c)
 						} else if ru.Typ == TypeGauge {
-							ru.metricGauge.Set(c)
+							ru.metricGauge.WithLabelValues(label).Set(c)
 						}
 					}
 				}
