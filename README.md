@@ -1,4 +1,5 @@
 # promgrep
+
 Prometheus exporter for metrics that are gotten from stdin and then parsed with regex rules
 
 ## Usage
@@ -27,5 +28,4 @@ promgrep_thing_count 3
 
 * "--gauge [metric_name]@[regex]" defines regex rules for extracting metrics from input stream and expose it as [Prometheus Gauges](https://prometheus.io/docs/concepts/metric_types/#gauge). The regex must have a group match for a number ([0-9\\.]+) as it will be used as the value in metrics. If there is another regex group that does not resolve to a number, the matched contents will be used as "label" value in metric.
 
-
-
+* "--output (none|match|all)" determines what will be written to stdout. 'none' for silence, 'match' for lines matches by regex rules or 'all' to input to output passthrough. Defaults to 'match'
