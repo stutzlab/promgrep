@@ -18,11 +18,24 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
+//Output data that will be output
+type Output string
+
+const (
+	//None no output will be output
+	None Output = "none"
+	//Match only parts of regex matches will be output
+	Match = "match"
+	//All input data will be output (passthrough)
+	All = "all"
+)
+
 //PromOptions prometheus exporter config
 type PromOptions struct {
 	BindHost    string
 	BindPort    uint
 	MetricsPath string
+	Output      Output
 }
 
 //MetricType type of metric (counter summary or gauge)
@@ -47,7 +60,8 @@ type MetricRule struct {
 
 //Start initializes regex rules, starts prometheus exporter http endpoint and starts consuming reader and updating metrics
 //use Context in order to wait or stop this routine
-func Start(ctx context.Context, rules []MetricRule, opt PromOptions, in io.Reader) error {
+func Start(ctx context.Context, rules []MetricRule, opt PromOptions, in io.Reader, out io.Writer) error {
+	// logrus.SetLevel(logrus.DebugLevel)
 	if opt.BindHost == "" {
 		opt.BindHost = "0.0.0.0"
 	}
@@ -56,6 +70,9 @@ func Start(ctx context.Context, rules []MetricRule, opt PromOptions, in io.Reade
 	}
 	if opt.MetricsPath == "" {
 		opt.MetricsPath = "/metrics"
+	}
+	if opt.Output == "" {
+		opt.Output = Match
 	}
 
 	logrus.Debugf("Setup prometheus metrics...")
@@ -119,6 +136,12 @@ func Start(ctx context.Context, rules []MetricRule, opt PromOptions, in io.Reade
 				for _, r := range rs {
 					r.in <- scanner.Text()
 				}
+				if opt.Output == All {
+					_, err := out.Write(scanner.Bytes())
+					if err != nil {
+						logrus.Debugf("Error copying input to output stream. err=%s", err)
+					}
+				}
 			}
 		}
 		for _, r := range rs {
@@ -171,6 +194,14 @@ func Start(ctx context.Context, rules []MetricRule, opt PromOptions, in io.Reade
 							ru.metricSummary.WithLabelValues(label).Observe(c)
 						} else if ru.Typ == TypeGauge {
 							ru.metricGauge.WithLabelValues(label).Set(c)
+						}
+
+						if opt.Output == Match {
+							_, err := out.Write([]byte(m[0]))
+							if err != nil {
+								logrus.Debugf("Error writing regex match to output. err=%s", err)
+							}
+							// out.Write([]byte("\n"))
 						}
 					}
 				}

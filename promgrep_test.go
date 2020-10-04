@@ -1,6 +1,7 @@
 package promgrep
 
 import (
+	"bytes"
 	"context"
 	"io/ioutil"
 	"net/http"
@@ -14,7 +15,6 @@ import (
 func TestBasic(t *testing.T) {
 	// logrus.SetLevel(logrus.DebugLevel)
 
-	test := strings.NewReader("abc123abc123\n")
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
@@ -35,7 +35,9 @@ func TestBasic(t *testing.T) {
 		Typ:   TypeSummary,
 	})
 
-	err := Start(ctx, rules, PromOptions{}, test)
+	test := strings.NewReader("abc123abc123\n")
+	out := bytes.Buffer{}
+	err := Start(ctx, rules, PromOptions{}, test, &out)
 	assert.Nil(t, err)
 	time.Sleep(1 * time.Second)
 
@@ -51,7 +53,6 @@ func TestBasic(t *testing.T) {
 func TestSimpleCounter(t *testing.T) {
 	// logrus.SetLevel(logrus.DebugLevel)
 
-	test := strings.NewReader("abc123abc123ABCasfasfads123abcasdfadfsa123abcsdfasdfas123abcXYZaskdfjakljdhf\naslkdfj asldkjfh lksjdhf alkjdf lkasdfhABCalsdfjha678sldkjf432hsadlk098fXYY ajkldhfjlashdfljkadshABC lshfalksjfhaklsdhf XYZ")
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
@@ -82,9 +83,13 @@ func TestSimpleCounter(t *testing.T) {
 		Typ:   TypeSummary,
 	})
 
-	err := Start(ctx, rules, PromOptions{}, test)
+	test := strings.NewReader("abc123abc123ABCasfasfads123abcasdfadfsa123abcsdfasdfas123abcXYZaskdfjakljdhf\naslkdfj asldkjfh lksjdhf alkjdf lkasdfhABCalsdfjha678sldkjf432hsadlk098fXYY ajkldhfjlashdfljkadshABC lshfalksjfhaklsdhf XYZ")
+	out := new(bytes.Buffer)
+	err := Start(ctx, rules, PromOptions{Output: None}, test, out)
 	assert.Nil(t, err)
 	time.Sleep(1 * time.Second)
+
+	assert.Empty(t, out.String())
 
 	bs := readMetrics(t)
 	assert.Contains(t, bs, "promgrep_full2_count{label=\"\"} 1")
@@ -102,7 +107,6 @@ func TestSimpleCounter(t *testing.T) {
 func TestCounterExtract(t *testing.T) {
 	// logrus.SetLevel(logrus.DebugLevel)
 
-	test := strings.NewReader("abc123abc123ABCasfasfads123abcasdTEST=10000fadfsa123abcsdfasdfas123abcXYZaskdfjakTEST=20000ljdhf\naslkdfj asldkjfh lksjdhf alkjdf lkasdfTEST=1.123hABCalsdfjha=678sldkjf432hsadlk098fXYY ajkldhfjlashdfljkadshABC lshfalksjfhaklsdhf XYZ")
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
@@ -123,9 +127,16 @@ func TestCounterExtract(t *testing.T) {
 		Typ:   TypeGauge,
 	})
 
-	err := Start(ctx, rules, PromOptions{}, test)
+	is := "abc123abc123ABCasfasfads123abcasdTEST=10000fadfsa123abcsdfasdfas123abcXYZaskdfjakTEST=20000ljdhf\naslkdfj asldkjfh lksjdhf alkjdf lkasdfTEST=1.123hABCalsdfjha=678sldkjf432hsadlk098fXYY ajkldhfjlashdfljkadshABC lshfalksjfhaklsdhf XYZ"
+	test := strings.NewReader(is)
+	out := new(bytes.Buffer)
+	err := Start(ctx, rules, PromOptions{Output: All}, test, out)
 	assert.Nil(t, err)
 	time.Sleep(1 * time.Second)
+
+	oss := out.String()
+	assert.NotEmpty(t, oss)
+	assert.Equal(t, strings.Replace(is, "\n", "", -1), oss)
 
 	bs := readMetrics(t)
 	assert.Contains(t, bs, "promgrep_num3_count{label=\"\"} 2")
@@ -138,7 +149,6 @@ func TestCounterExtract(t *testing.T) {
 func TestCounterExtractLabel(t *testing.T) {
 	// logrus.SetLevel(logrus.DebugLevel)
 
-	test := strings.NewReader("abc123abc123ABCasfasfads123abcasdTEST=10000fadfsa123abcsdfasdfas123abc XYZ=ABRACADABRA fjakTEST=20000ljdhf\naslkdfj asldkjfh lksjdhf alkjdf lkasdfTEST=1.123hABCalsdfjha=678sldkjf432hsadlk098fXYY ajkldhfjlashdfljkadshABC lshfalksjfhaklsdhf XYZ")
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
@@ -164,9 +174,16 @@ func TestCounterExtractLabel(t *testing.T) {
 		Typ:   TypeGauge,
 	})
 
-	err := Start(ctx, rules, PromOptions{}, test)
+	is := "abc123abc123ABCasfasfads123abcasdTEST=10000fadfsa123abcsdfasdfas123abc XYZ=ABRACADABRA fjakTEST=20000ljdhf\naslkdfj asldkjfh lksjdhf alkjdf lkasdfTEST=1.123hABCalsdfjha=678sldkjf432hsadlk098fXYY ajkldhfjlashdfljkadshABC lshfalksjfhaklsdhf XYZ"
+	test := strings.NewReader(is)
+	out := &bytes.Buffer{}
+	err := Start(ctx, rules, PromOptions{}, test, out)
 	assert.Nil(t, err)
 	time.Sleep(1 * time.Second)
+
+	os := out.String()
+	assert.NotEmpty(t, os)
+	assert.Less(t, len(os), len(is))
 
 	bs := readMetrics(t)
 	assert.Contains(t, bs, "promgrep_sum4a_sum{label=\"ABRACADABRA\"} 123")
